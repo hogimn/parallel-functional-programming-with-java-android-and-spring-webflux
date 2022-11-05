@@ -51,7 +51,11 @@ public class SequentialStreamsCrawler // Loaded via reflection
 
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return Stream.of(pageUri)
+                .filter(uri -> depth <= mMaxDepth && mUniqueUris.putIfAbsent(uri))
+                .mapToInt(uri -> crawlPage(uri, depth))
+                .findFirst()
+                .orElse(0);
     }
 
     /**
@@ -82,7 +86,12 @@ public class SequentialStreamsCrawler // Loaded via reflection
         // and stored.
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return Stream.of(pageUri)
+                .map(mWebPageCrawler::getPage)
+                .filter(Objects::nonNull)
+                .mapToInt(uri -> processPage(uri, depth))
+                .findFirst()
+                .orElse(0);
     }
 
     /**
@@ -107,7 +116,12 @@ public class SequentialStreamsCrawler // Loaded via reflection
         // Return a count of of all images processed on/from this page.
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return page
+                .getPageElementsAsStream(IMAGE, PAGE)
+                .mapToInt(e -> e.getType() == IMAGE ?
+                        processImage(e.getURL()) :
+                        performCrawl(e.getUrl(), depth + 1))
+                .sum();
     }
 
     /**
@@ -129,7 +143,11 @@ public class SequentialStreamsCrawler // Loaded via reflection
 
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return Stream.of(imageUrl)
+                .map(this::getOrDownloadImage)
+                .filter(Objects::nonNull)
+                .mapToInt(this::transformImage)
+                .sum();
     }
 
     /**
@@ -168,7 +186,11 @@ public class SequentialStreamsCrawler // Loaded via reflection
 
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return (int) mTransforms.stream()
+                .filter(transform -> createNewCacheItem(image, transform))
+                .map(transform -> applyTransform(transform, image))
+                .filter(Objects::nonNull)
+                .count();
     }
 
     /**
@@ -194,6 +216,11 @@ public class SequentialStreamsCrawler // Loaded via reflection
 
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return (int) getRemoteDataSource()
+                .applyTransforms(this, image, getTransformNames(), false)
+                .stream()
+                .map(transformedImage -> createImage(image, transformedImage))
+                .filter(Objects::nonNull)
+                .count();
     }
 }
