@@ -83,7 +83,18 @@ public class MainService {
         // Send a transform request to each microservice and then
         // return the list of all transformed images.
         // TODO -- you fill in here replacing this statement with your solution.
-        return null;
+        Stream<String> transformStream;
+        if (parallel)
+            transformStream = transforms.parallelStream();
+        else
+            transformStream = transforms.stream();
+
+        return transformStream
+                .map(this::buildMicroserviceUrl)
+                .filter(Objects::nonNull)
+                .map(url -> postRequest(url, imageBytes, fileName))
+                .filter(Objects::nonNull)
+                .collect(toList());
     }
 
     /**
@@ -119,7 +130,8 @@ public class MainService {
         // Post the request and return the transformed image.
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return null;
+        return restTemplate
+                .postForObject(url, map, TransformedImage.class);
     }
 
     /**
@@ -165,6 +177,8 @@ public class MainService {
         // that transform images.
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return null;
+        return discoveryClient
+                .getServices()
+                .stream();
     }
 }

@@ -45,6 +45,9 @@ public class TransformService {
     TransformService() {
         // Initialize the contents of mTransformMap with the appropriate values.
         // TODO -- you fill in here.
+        mTransformMap.put(GRAYSCALE_TRANSFORM, this::grayscaleTransform);
+        mTransformMap.put(SEPIA_TRANSFORM, this::sepiaTransform);
+        mTransformMap.put(TINT_TRANSFORM, this::tintTransform);
     }
 
     /**
@@ -71,7 +74,21 @@ public class TransformService {
 
         // TODO -- you fill in here, replacing return null with
         // the appropriate code.
-        return null;
+        Function<BufferedImage, Void> transformFunction =
+                mTransformMap.entrySet()
+                        .stream()
+                        .filter(e -> e.getKey().toLowerCase()
+                                .contains(transformName.toLowerCase()))
+                        .map(Map.Entry::getValue)
+                        .findFirst()
+                        .orElse(null);
+
+        if (transformFunction == null)
+            return null;
+
+        transformFunction.apply(bufferedImage);
+
+        return new TransformedImage(imageName, transformName, bufferedImage);
     }
 
     /**
