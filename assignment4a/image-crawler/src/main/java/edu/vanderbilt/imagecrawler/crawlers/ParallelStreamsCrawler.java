@@ -56,7 +56,11 @@ public class ParallelStreamsCrawler // Loaded via reflection
         //    processed images from the one-element stream.
 
         // TODO -- you fill in here replacing this statement with your solution.
-        return 0;
+        return Stream.of(pageUri)
+                .filter(uri -> depth <= mMaxDepth && mUniqueUris.add(uri))
+                .mapToInt(uri -> crawlPage(uri, depth))
+                .findFirst()
+                .orElse(0);
     }
 
     /**
@@ -87,7 +91,13 @@ public class ParallelStreamsCrawler // Loaded via reflection
         // stored.
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return Stream.of(pageUri)
+                .map(uri -> callInManagedBlocker(() ->
+                        mWebPageCrawler.getPage(uri)))
+                .filter(Objects::nonNull)
+                .mapToInt(page -> processPage(page, depth))
+                .findFirst()
+                .orElse(0);
     }
 
     /**
@@ -113,7 +123,13 @@ public class ParallelStreamsCrawler // Loaded via reflection
         // Return a count of of all images processed on/from this page.
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return page
+                .getPageElementsAsStream(IMAGE, PAGE)
+                .parallel()
+                .mapToInt(e -> e.getType() == IMAGE ?
+                        processImage(e.getURL()) :
+                        performCrawl(e.getUrl(), depth + 1))
+                .sum();
     }
 
     /**
@@ -138,7 +154,12 @@ public class ParallelStreamsCrawler // Loaded via reflection
         // Return the count of transformed images.
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return Stream.of(url)
+                .map(imageUrl -> getOrDownloadImage(imageUrl,
+                        this::managedBlockerDownloadImage))
+                .filter(Objects::nonNull)
+                .mapToInt(this::transformImage)
+                .sum();
     }
 
     /**
@@ -176,7 +197,12 @@ public class ParallelStreamsCrawler // Loaded via reflection
         // 5. Count the number of non-null images that were transformed.
 
         // TODO -- you fill in here replacing this statement with your solution.
-        return 0;
+        return (int) mTransforms
+                .parallelStream()
+                .filter(transform -> createNewCacheItem(image, transform))
+                .map(transform -> applyTransform(transform, image))
+                .filter(Objects::nonNull)
+                .count();
     }
 
     /**
@@ -202,7 +228,12 @@ public class ParallelStreamsCrawler // Loaded via reflection
 
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return (int) getRemoteDataSource()
+                .applyTransforms(this, image, getTransformNames(), true)
+                .parallelStream()
+                .map(transformedImage -> createImage(image, transformedImage))
+                .filter(Objects::nonNull)
+                .count();
     }
 
     /**
@@ -220,7 +251,7 @@ public class ParallelStreamsCrawler // Loaded via reflection
         // Use BlockingTask.callInManagedBlock() to run the supplier
         // as a ManagedBlocker.
         // TODO -- you fill in here replacing null with your solution.
-        return null;
+        return BlockingTask.callInManagedBlock(supplier);
     }
 
     /**
@@ -236,6 +267,6 @@ public class ParallelStreamsCrawler // Loaded via reflection
         // Use callInManagedBlocker() and downloadImage() to download
         // the item in a ManagedBlocker.
         // TODO -- you fill in here replacing null with your solution.
-        return null;
+        return callInManagedBlocker(() -> downloadImage(item));
     }
 }
