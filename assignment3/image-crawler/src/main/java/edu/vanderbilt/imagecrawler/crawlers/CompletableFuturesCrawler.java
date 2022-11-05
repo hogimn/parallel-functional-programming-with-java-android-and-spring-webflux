@@ -30,7 +30,7 @@ public class CompletableFuturesCrawler
      */
     // TODO -- you fill in here replacing null with your solution.
     protected static CompletableFuture<Integer> mZero =
-        null;
+        CompletableFuture.completedFuture(0);
 
     /**
      * Perform the web crawl.
@@ -48,7 +48,8 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return 0 with your
         // solution.
-        return 0;
+        return crawlPageAsync(pageUri, depth)
+                .join();
     }
 
     /**
@@ -80,7 +81,11 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return null with your
         // solution.
-        return null;
+        return Stream.of(pageUri)
+                .filter(uri -> depth <= mMaxDepth && mUniqueUris.add(uri))
+                .map(uri -> crawlPageHelper(uri, depth))
+                .findFirst()
+                .orElse(mZero);
     }
 
     /**
@@ -110,7 +115,16 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return null with your
         // solution.
-        return null;
+        CompletableFuture<Crawler.Page> pageFuture =
+                getPageAsync(pageUri);
+
+        CompletableFuture<Integer> imagesOnPageFuture =
+                getImagesOnPageAsync(pageFuture);
+
+        CompletableFuture<Integer> imagesOnPageLinksFuture =
+                crawlHyperLinksOnPageAsync(pageFuture, depth + 1);
+
+        return combineResults(imagesOnPageFuture, imagesOnPageLinksFuture);
     }
 
     /**
@@ -128,7 +142,8 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return null with your
         // solution.
-        return null;
+        return CompletableFuture
+                .supplyAsync(() -> mWebPageCrawler.getPage(pageUri));
     }
 
     /**
@@ -150,7 +165,9 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return null with your
         // solution.
-        return null;
+        return pageFuture
+                .thenApplyAsync(this::getImagesOnPageStream)
+                .thenComposeAsync(this::processImages);
     }
 
     /**
@@ -174,7 +191,8 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return null with your
         // solution.
-        return null;
+        return pageFuture
+                .thenComposeAsync(page -> crawlHyperLinksOnPage(page, depth));
     }
 
     /**
@@ -197,7 +215,8 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return null with your
         // solution.
-        return null;
+        return imagesOnPageFuture
+                .thenCombine(imagesOnPageLinksFuture, Integer::sum);
     }
 
     /**
@@ -221,7 +240,11 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return null with your
         // solution.
-        return null;
+        return page
+                .getPageElementsAsStringStream(PAGE)
+                .map(uri -> crawlPageAsync(uri, depth))
+                .collect(FuturesCollectorIntStream.toFuture())
+                .thenApply(IntStream::sum);
     }
 
     /**
@@ -245,7 +268,11 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return null with your
         // solution.
-        return null;
+        return urls
+                .map(this::getOrDownloadImageAsync)
+                .flatMap(this::transformImageAsync)
+                .collect(FuturesCollectorIntStream.toFuture())
+                .thenApply(IntStream::sum);
     }
 
     /**
@@ -269,7 +296,10 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return null with your
         // solution.
-        return null;
+        return mTransforms
+                .stream()
+                .map(transform -> imageFuture.thenApplyAsync(image ->
+                        transformImage(transform, image)));
     }
 
     /**
@@ -295,6 +325,10 @@ public class CompletableFuturesCrawler
 
         // TODO -- you fill in here replacing return 0 with your
         // solution.
-        return 0;
+        return (int) Stream.of(transform)
+                .filter(t -> createNewCacheItem(image, t))
+                .map(t -> applyTransform(t, image))
+                .filter(Objects::nonNull)
+                .count();
     }
 }
