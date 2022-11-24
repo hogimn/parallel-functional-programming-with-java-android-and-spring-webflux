@@ -56,7 +56,11 @@ public class RxObservableCrawler
 
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return 0;
+        return crawlPageAsync(pageUri, depth)
+                .count()
+                .onErrorReturnItem(0L)
+                .blockingGet()
+                .intValue();
     }
 
     /**
@@ -88,7 +92,10 @@ public class RxObservableCrawler
         //    asynchronously.
 
         // TODO -- you fill in here replacing null with your solution.
-        return null;
+        return Observable.fromCallable(() -> pageUri)
+                .filter(uri -> depth <= mMaxDepth && mUniqueUris.add(uri))
+                .map(mWebPageCrawler::getPage)
+                .flatMap(page -> processPageAsync(page, depth));
     }
 
     /**
@@ -110,7 +117,8 @@ public class RxObservableCrawler
 
         // TODO -- you fill in here replacing 'return null' with your
         // solution.
-        return null;
+        return imagesOnPageLinksAsync(page, depth)
+                .mergeWith(imagesOnPageAsync(page));
     }
 
     /**
@@ -140,7 +148,10 @@ public class RxObservableCrawler
 
         // TODO -- you fill in here replacing 'return null' with your
         // solution.
-        return null;
+        return Observable.fromIterable(
+                        page.getPageElementsAsStrings(PAGE))
+                .flatMap(uri -> crawlPageAsync(uri, depth + 1)
+                        .subscribeOn(Schedulers.io()));
     }
 
     /**
@@ -168,7 +179,10 @@ public class RxObservableCrawler
 
         // TODO -- you fill in here replacing 'return null' with your
         // solution.
-        return null;
+        return Observable.fromIterable(
+                        page.getPageElementsAsUrls(IMAGE))
+                .flatMap(this::downloadImageAsync)
+                .flatMap(this::transformImageAsync);
     }
 
     /**
@@ -199,7 +213,10 @@ public class RxObservableCrawler
 
         // TODO -- you fill in here replacing 'return null' with your
         // solution.  
-        return null;
+        return Observable.fromCallable(() -> url)
+                .subscribeOn(Schedulers.io())
+                .compose(mapNotNull(imageUrl ->
+                        getOrDownloadImage(imageUrl, this::downloadImage)));
     }
 
     /**
@@ -239,7 +256,11 @@ public class RxObservableCrawler
         } else {
             // TODO -- you fill in here replacing 'return null' with
             // your solution.
-            return null;
+            return Observable.fromIterable(mTransforms)
+                    .subscribeOn(Schedulers.io())
+                    .filter(transform -> createNewCacheItem(image, transform))
+                    .compose(mapNotNull(transform ->
+                            applyTransform(transform, image)));
         }
     }
 
@@ -263,12 +284,13 @@ public class RxObservableCrawler
         // containing the image bytes.
 
         // TODO -- you fill in here replacing null with your solution.
-        
+        MultipartBody.Part part =
+                remoteDataSource.buildMultipartBodyPart(this, image);
 
         // Call super class helper method to get the list of
         // transform.  TODO -- you fill in here replacing null with
         // your solution.
-        List<String> transformNames = null;
+        List<String> transformNames = getTransformNames();
 
         // Call api method to build a Flux stream of transforms that,
         // once subscribed to, will using microservices to
@@ -276,7 +298,9 @@ public class RxObservableCrawler
 
         // TODO -- you fill in here replacing 'return null' with your
         // solution.
-        return null;
+        return api.applyRxJavaTransforms(transformNames, part, true)
+                .flatMapObservable(Observable::fromIterable)
+                .map(transformedImage -> createImage(image, transformedImage));
     }
 
     /**

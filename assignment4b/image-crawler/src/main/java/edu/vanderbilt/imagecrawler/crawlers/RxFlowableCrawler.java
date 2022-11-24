@@ -59,7 +59,11 @@ public class RxFlowableCrawler
 
         // TODO -- you fill in here replacing 'return 0' with your
         // solution.
-        return 0;
+        return crawlPageAsync(url, depth)
+                .count()
+                .onErrorReturnItem(0L)
+                .blockingGet()
+                .intValue();
     }
 
     /**
@@ -91,7 +95,10 @@ public class RxFlowableCrawler
 
         // TODO -- you fill in here replacing 'return null' with your
         // solution.
-        return null;
+        return Flowable.fromCallable(() -> pageUrl)
+                .filter(uri -> depth <= mMaxDepth && mUniqueUris.add(uri))
+                .map(mWebPageCrawler::getPage)
+                .flatMap(page -> imagesOnPageAndPageLinksAsync(page, depth));
     }
 
     /**
@@ -112,7 +119,8 @@ public class RxFlowableCrawler
 
         // TODO -- you fill in here replacing this statement with your
         // solution.
-        return null;
+        return imagesOnPageLinksAsync(page, depth)
+                .mergeWith(imagesOnPageAsync(page));
     }
 
     /**
@@ -145,7 +153,12 @@ public class RxFlowableCrawler
 
         // TODO -- you fill in here replacing 'return null' with your
         // solution.
-        return null;
+        return Flowable.fromIterable(
+                        page.getPageElementsAsStrings(PAGE))
+                .parallel()
+                .runOn(Schedulers.io())
+                .flatMap(uri -> crawlPageAsync(uri, depth + 1))
+                .sequential();
     }
 
     /**
@@ -180,7 +193,14 @@ public class RxFlowableCrawler
 
         // TODO -- you fill in here replacing 'return null' with your
         // solution.
-        return null;
+        return Flowable.fromIterable(
+                page.getPageElementsAsUrls(IMAGE))
+                .parallel()
+                .runOn(Schedulers.io())
+                .compose(mapNotNull(url ->
+                        getOrDownloadImage(url, this::downloadImage)))
+                .flatMap(this::transformImageAsync)
+                .sequential();
     }
 
     /**
@@ -225,7 +245,13 @@ public class RxFlowableCrawler
         } else {
             // TODO -- you fill in here replacing 'return null' with your
             // solution.
-            return null;
+            return Flowable.fromIterable(mTransforms)
+                    .parallel()
+                    .runOn(Schedulers.io())
+                    .filter(transform -> createNewCacheItem(image, transform))
+                    .compose(mapNotNull(transform ->
+                            applyTransform(transform, image)))
+                    .sequential();
         }
     }
 
